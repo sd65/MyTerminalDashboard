@@ -193,7 +193,8 @@ func main() {
   runNowAndEvery(1, updateClock)
 
 
-  updateSchedules := func () {
+  updateSchedulesAndTraffic := func () {
+    // RER & BUS
     for _, value := range types {
       s := new(jsonSchedules)
       getJson(urlSchedules[value], s)
@@ -204,41 +205,23 @@ func main() {
       }
       ls[value].Items = ss
       centerList(ls[value], false)
-      ui.Render(ui.Body)
     }
-  }
-  runNowAndEvery(15, updateSchedules)
-
-
-  updateTrafficRER := func () {
+    // Traffic
     s := new(jsonTraffic)
     getJson(urlTrafficRer, s)
     trafficRER.Text = s.Response.Message
     centerPar(trafficRER)
+    // Finally
     ui.Render(ui.Body)
   }
-  runNowAndEvery(31, updateTrafficRER)
+  runNowAndEvery(15, updateSchedulesAndTraffic)
 
-  updateToday := func () {
-    s := new(jsonToday)
-    getJson(urlToday, s)
+  updateWeatherAndToday := func () {
     now := time.Now()
-    ss := time.Unix(s.Sys.Sunset, 0)
-    sr := time.Unix(s.Sys.Sunrise, 0)
-    lsToday.Items = []string{
-      now.Format(dateFormat),
-      "Lever du soleil : " + sr.Format(sunTimeFormat),
-      "Coucher du soleil : " + ss.Format(sunTimeFormat),
-    }
-    centerList(lsToday, false)
-    ui.Render(ui.Body)
-  }
-  runNowAndEvery(60 * 3600, updateToday)
-
-  updateWeather := func () {
+    // Weather
     s := new(jsonWeather)
     getJson(urlWeather, s)
-    cDay := time.Now().Day()
+    cDay := now.Day()
     temp := make([]int, len(s.List))
     cloud := make([]int, len(s.List))
     rain := make([]int, len(s.List))
@@ -270,9 +253,20 @@ func main() {
     gWind.Data = wind
     gTemp.DataLabels, gCloud.DataLabels = lb, lb
     gRain.DataLabels, gWind.DataLabels = lb, lb
+    // Today
+    s2 := new(jsonToday)
+    getJson(urlToday, s2)
+    ss := time.Unix(s2.Sys.Sunset, 0)
+    sr := time.Unix(s2.Sys.Sunrise, 0)
+    lsToday.Items = []string{
+      now.Format(dateFormat),
+      "Lever du soleil : " + sr.Format(sunTimeFormat),
+      "Coucher du soleil : " + ss.Format(sunTimeFormat),
+    }
+    centerList(lsToday, false)
     ui.Render(ui.Body)
   }
-  runNowAndEvery(60 * 10, updateWeather)
+  runNowAndEvery(60 * 10, updateWeatherAndToday)
 
 
   // Layout
