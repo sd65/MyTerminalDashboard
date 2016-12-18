@@ -23,8 +23,15 @@ type jsonTraffic struct {
   }
 }
 
+type jsonToday struct {
+  Sys struct {
+    Sunrise int64
+    Sunset int64
+  }
+}
+
 type jsonWeather struct {
-  List[] struct {
+  List []struct {
     Dt int64
     Main struct {
       Temp float64
@@ -48,10 +55,13 @@ var termWidth int = 0
 var accentColor ui.Attribute = ui.ColorCyan
 var types = []string{ "rer", "bus" }
 var timeClockFormat string = "15:04:05"
+var sunTimeFormat string = "15h04"
+var dateFormat string = "Monday 2 January 2006"
 var urlSchedulesRer string = "http://api-ratp.pierre-grimaud.fr/v2/rers/a/stations/10?destination=1"
 var urlSchedulesBus string = "https://api-ratp.pierre-grimaud.fr/v2/bus/124/stations/1596?destination=108"
 var urlTrafficRer string = "https://api-ratp.pierre-grimaud.fr/v2/traffic/rers/A"
-var urlWeather string = "http://api.openweathermap.org/data/2.5/forecast?q=Brest,fr&mode=json&appid=6e2218dcec22c786e4a039dfe3bfae98&lang=fr&units=metric"
+var urlWeather string = "http://api.openweathermap.org/data/2.5/forecast?id=6452019&mode=json&appid=6e2218dcec22c786e4a039dfe3bfae98&lang=fr&units=metric"
+var urlToday string = "http://api.openweathermap.org/data/2.5/weather?id=6452019&appid=6e2218dcec22c786e4a039dfe3bfae98"
 
 
 // Funcs
@@ -153,6 +163,10 @@ func main() {
   trafficRER.TextFgColor = ui.ColorRed
   trafficRER.BorderLabelFg = accentColor
 
+  // Today
+
+  lsToday := newMyList("Aujourd'hui", ui.ColorGreen, true)
+
   // Clock
 
   lsTime := newMyList("", ui.ColorWhite, false)
@@ -205,6 +219,22 @@ func main() {
   }
   runNowAndEvery(31, updateTrafficRER)
 
+  updateToday := func () {
+    s := new(jsonToday)
+    getJson(urlToday, s)
+    now := time.Now()
+    ss := time.Unix(s.Sys.Sunset, 0)
+    sr := time.Unix(s.Sys.Sunrise, 0)
+    lsToday.Items = []string{
+      now.Format(dateFormat),
+      "Lever du soleil : " + sr.Format(sunTimeFormat),
+      "Coucher du soleil : " + ss.Format(sunTimeFormat),
+    }
+    centerList(lsToday, false)
+    ui.Render(ui.Body)
+  }
+  runNowAndEvery(60 * 3600, updateToday)
+
   updateWeather := func () {
     s := new(jsonWeather)
     getJson(urlWeather, s)
@@ -249,7 +279,7 @@ func main() {
 
   ui.Body.AddRows(
     ui.NewRow(
-      ui.NewCol(6, 0, lsTime, trafficRER, ls["rer"], ls["bus"]),
+      ui.NewCol(6, 0, lsTime, lsToday, trafficRER, ls["rer"], ls["bus"]),
       ui.NewCol(6, 0, gTemp, gCloud, gWind, gRain),
     ),
   )
@@ -272,7 +302,11 @@ func main() {
   trafficRER.Height = heightTrafficRer
   trafficRER.Y = ls["rer"].Y - heightTrafficRer
 
-  lsTime.Height = termHeight - ls["bus"].Height - ls["rer"].Height - trafficRER.Height
+  heightToday := 5
+  lsToday.Height = heightToday
+  lsToday.Y = trafficRER.Y - heightToday
+
+  lsTime.Height = termHeight - heightSchedules - heightTrafficRer - heightToday
 
   // Render
 
