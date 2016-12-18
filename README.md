@@ -1,6 +1,6 @@
 # My Terminal Dashboard
 
-![Screenshot](https://raw.github.com/sd65/MyTerminalDashboard/master/screenhots/screen1.png)
+![Screenshot](https://raw.githubusercontent.com/sd65/MyTerminalDashboard/master/screenshots/screen1.png)
 
 # Why
 
