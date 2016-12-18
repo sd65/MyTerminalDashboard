@@ -41,7 +41,7 @@ type jsonWeather struct {
   }
 }
 
-// Globals 
+// Globals
 
 var termHeight int = 0
 var termWidth int = 0
@@ -103,7 +103,14 @@ func centerList(myList * ui.List, verticaly bool) {
 }
 
 func centerPar(myPar * ui.Par) {
-  myPar.PaddingLeft = (myPar.Width - len(myPar.Text)) / 2
+  l := len(myPar.Text)
+  if l < myPar.Width {
+    myPar.PaddingTop = 1
+    myPar.PaddingLeft = (myPar.Width - l) / 2
+  } else {
+    myPar.PaddingTop = 0
+    myPar.PaddingLeft = 0
+  }
 }
 
 func getJson(url string, target interface {}) error {
@@ -139,20 +146,16 @@ func main() {
 
   var ls = make(map[string] * ui.List)
   ls["bus"] = newMyList("Bus -> VDF", ui.ColorYellow, true)
-  ls["bus"].Height = 4
   ls["rer"] = newMyList("RER -> Paris", ui.ColorRed, true)
-  ls["rer"].Height = 8
 
-  trafficRER := ui.NewPar("Updating...")
+  trafficRER := ui.NewPar("")
   trafficRER.BorderLabel = "Traffic RER"
   trafficRER.TextFgColor = ui.ColorRed
   trafficRER.BorderLabelFg = accentColor
-  trafficRER.Height = 3
 
   // Clock
 
   lsTime := newMyList("", ui.ColorWhite, false)
-  lsTime.Height = termHeight - ls["bus"].Height - ls["rer"].Height - trafficRER.Height
 
   // Weather Graphs
 
@@ -164,23 +167,23 @@ func main() {
 
 
   // Updates
-  
+
   updateClock := func () {
       t := time.Now()
       str := t.Format(timeClockFormat)
-      myFigure := figure.NewFigure(str, "starwars", false)
+      myFigure := figure.NewFigure(str, "ogre", false)
       lsTime.Items = myFigure.Slicify()
       centerList(lsTime, true)
       ui.Render(ui.Body)
   }
   runNowAndEvery(1, updateClock)
-  
+
 
   updateSchedules := func () {
     for _, value := range types {
       s := new(jsonSchedules)
       getJson(urlSchedules[value], s)
-      ss := make([] string, len(s.Response.Schedules))
+      ss := make([]string, len(s.Response.Schedules))
       for key,
       _ := range s.Response.Schedules {
         ss[key] = s.Response.Schedules[key].Message
@@ -191,7 +194,7 @@ func main() {
     }
   }
   runNowAndEvery(15, updateSchedules)
-  
+
 
   updateTrafficRER := func () {
     s := new(jsonTraffic)
@@ -206,11 +209,11 @@ func main() {
     s := new(jsonWeather)
     getJson(urlWeather, s)
     cDay := time.Now().Day()
-    temp := make([] int, len(s.List))
-    cloud := make([] int, len(s.List))
-    rain := make([] int, len(s.List))
-    wind := make([] int, len(s.List))
-    lb := make([] string, len(s.List))
+    temp := make([]int, len(s.List))
+    cloud := make([]int, len(s.List))
+    rain := make([]int, len(s.List))
+    wind := make([]int, len(s.List))
+    lb := make([]string, len(s.List))
     for key,
     _ := range s.List {
       tm := time.Unix(s.List[key].Dt, 0)
@@ -232,23 +235,17 @@ func main() {
       wind[key] = int(s.List[key].Wind.Speed)
     }
     gTemp.Data = temp
-    gTemp.DataLabels = lb
-
     gCloud.Data = cloud
-    gCloud.DataLabels = lb
-
     gRain.Data = rain
-    gRain.DataLabels = lb
-
     gWind.Data = wind
-    gWind.DataLabels = lb
-
+    gTemp.DataLabels, gCloud.DataLabels = lb, lb
+    gRain.DataLabels, gWind.DataLabels = lb, lb
     ui.Render(ui.Body)
   }
   runNowAndEvery(60 * 10, updateWeather)
-  
 
-  // Layout 
+
+  // Layout
 
   ui.Body.AddRows(
     ui.NewRow(
@@ -257,6 +254,25 @@ func main() {
     ),
   )
   ui.Body.Align()
+
+  // Ajust Layout
+
+  heightSchedules := 8
+  ls["bus"].Height = heightSchedules
+  ls["rer"].Height = heightSchedules
+  ls["bus"].Y = termHeight - heightSchedules
+  ls["rer"].Y = termHeight - heightSchedules
+
+  widthSchedules := termWidth / 4
+  ls["rer"].Width  = widthSchedules
+  ls["bus"].Width  = widthSchedules
+  ls["bus"].X = widthSchedules
+
+  heightTrafficRer := 5
+  trafficRER.Height = heightTrafficRer
+  trafficRER.Y = ls["rer"].Y - heightTrafficRer
+
+  lsTime.Height = termHeight - ls["bus"].Height - ls["rer"].Height - trafficRER.Height
 
   // Render
 
