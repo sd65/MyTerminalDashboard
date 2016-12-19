@@ -69,6 +69,7 @@ func newMyList(title string, colorFG ui.Attribute, border bool) * ui.List {
   tmpList := ui.NewList()
   tmpList.BorderLabel = title
   tmpList.Border = border
+  tmpList.Overflow = "wrap"
   tmpList.BorderLabelFg = accentColor
   tmpList.ItemFgColor = colorFG
   return tmpList
@@ -83,7 +84,7 @@ func newMyGraph(title string, barcolor ui.Attribute) * ui.BarChart {
   gTmp.TextColor = barcolor
   gTmp.NumColor =  ui.ColorWhite
   gTmp.BarGap = 1
-  gTmp.BarWidth = 5
+  gTmp.BarWidth = 3
   return gTmp
 }
 
@@ -221,31 +222,33 @@ func main() {
     // Weather
     s := new(jsonWeather)
     getJson(urlWeather, s)
-    cDay := now.Day()
-    temp := make([]int, len(s.List))
-    cloud := make([]int, len(s.List))
-    rain := make([]int, len(s.List))
-    wind := make([]int, len(s.List))
-    lb := make([]string, len(s.List))
-    for key,
-    _ := range s.List {
-      tm := time.Unix(s.List[key].Dt, 0)
-      var label string
-      switch tm.Day() {
-        case cDay:
-          label = "A "
-        case cDay + 1:
-          label = "D "
-        case cDay + 2:
-          label = "P "
-        default:
-          label = "O "
+    cDay := now
+    size := 0
+    maxBars := ((termWidth / 2) / 4) - 2
+    temp :=  make([]int, size)
+    cloud :=  make([]int, size)
+    rain :=  make([]int, size)
+    wind :=  make([]int, size)
+    lb :=  make([]string, size)
+    for key, forecast := range s.List {
+      if (key >= maxBars) {
+        break
       }
-      lb[key] = label + tm.Format("15h")
-      temp[key] = int(s.List[key].Main.Temp)
-      cloud[key] = int(s.List[key].Clouds.All)
-      rain[key] = int(s.List[key].Rain.Total * 10)
-      wind[key] = int(s.List[key].Wind.Speed)
+      tm := time.Unix(forecast.Dt, 0)
+      if (tm.Day() == cDay.AddDate(0, 0, 1).Day()) {
+        lb = append(lb, "|||")
+        value := 0
+        temp = append(temp, value)
+        cloud = append(cloud, value)
+        rain = append(rain, value)
+        wind = append(wind, value)
+        cDay = tm
+      }
+      lb = append(lb, tm.Format("15h"))
+      temp = append(temp, int(forecast.Main.Temp))
+      cloud = append(cloud, int(forecast.Clouds.All))
+      rain = append(rain, int(forecast.Rain.Total * 10))
+      wind = append(wind, int(forecast.Wind.Speed))
     }
     gTemp.Data = temp
     gCloud.Data = cloud
