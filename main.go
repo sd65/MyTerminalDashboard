@@ -1,7 +1,10 @@
 package main
 
 import (
+  "os"
+  "fmt"
   ui "github.com/gizak/termui"
+  hue "github.com/heatxsink/go-hue/lights"
   "time"
   "github.com/common-nighthawk/go-figure"
   "encoding/json"
@@ -9,6 +12,11 @@ import (
 )
 
 // Custom type for JSON decoding
+type jsonHueConfig struct {
+    Ip string
+    User string
+}
+
 type jsonSchedules struct {
   Response struct {
     Schedules[] struct {
@@ -62,9 +70,26 @@ var urlSchedulesBus string = "https://api-ratp.pierre-grimaud.fr/v2/bus/124/stat
 var urlTrafficRer string = "https://api-ratp.pierre-grimaud.fr/v2/traffic/rers/A"
 var urlWeather string = "http://api.openweathermap.org/data/2.5/forecast?id=6452019&mode=json&appid=6e2218dcec22c786e4a039dfe3bfae98&lang=fr&units=metric"
 var urlToday string = "http://api.openweathermap.org/data/2.5/weather?id=6452019&appid=6e2218dcec22c786e4a039dfe3bfae98"
-
+var hueStandardColor = []float32{ 0.38,0.38 }
+var hueWhiteColor = []float32{ 0.35, 0.35 }
+var hueOrangeColor = []float32{ 0.58, 0.36 }
+var hueBrightnessStep uint16 = 40
 
 // Funcs
+func doForAllLights (bridge *hue.Lights, f func(*hue.State)) {
+  go func () {
+    lights, err := bridge.GetAllLights()
+    if err != nil {
+       fmt.Println(err)
+       os.Exit(2)
+    }
+    for _, light := range lights {
+      state := light.State
+      f(&state)
+      bridge.SetLightState(light.ID, state)
+    }
+  }()
+}
 func newMyList(title string, colorFG ui.Attribute, border bool) * ui.List {
   tmpList := ui.NewList()
   tmpList.BorderLabel = title
@@ -309,10 +334,73 @@ func main() {
 
   ui.Render(ui.Body)
 
+  // Hue
+  file, _ := os.Open("./hueConfig.json")
+  hueConfig := new(jsonHueConfig)
+  json.NewDecoder(file).Decode(hueConfig)
+  bridge := hue.New(hueConfig.Ip, hueConfig.User)
+
   // Events
 
   ui.Handle("/sys/kbd/q", func(ui.Event) {
     ui.StopLoop()
+  })
+
+  // Hue
+  ui.Handle("/sys/kbd", func(e ui.Event) {
+    switch e.Path {
+      case "/sys/kbd/r":
+        doForAllLights(bridge, func(state *hue.State) {
+          state.XY = hueStandardColor
+          state.Bri = 254
+          state.On = true
+        })
+      case "/sys/kbd/s":
+        doForAllLights(bridge, func(state *hue.State) {
+          state.XY = hueStandardColor
+        })
+      case "/sys/kbd/w" :
+        doForAllLights(bridge, func(state *hue.State) {
+          state.XY = hueWhiteColor
+        })
+      case "/sys/kbd/<escape>" :
+        doForAllLights(bridge, func(state *hue.State) {
+          state.On = ! state.On
+        })
+      case "/sys/kbd/<up>" :
+        doForAllLights(bridge, func(state *hue.State) {
+          var newBri uint16 = uint16(state.Bri) + hueBrightnessStep
+          if newBri > 254 {
+            newBri = 254
+          }
+          state.Bri = uint8(newBri)
+        })
+      case "/sys/kbd/<down>" :
+        doForAllLights(bridge, func(state *hue.State) {
+          var newBri uint16 = uint16(state.Bri) - hueBrightnessStep
+          if newBri < 0 {
+            newBri = 0
+          }
+          state.Bri = uint8(newBri)
+        })
+      case "/sys/kbd/b" :
+        go func () {
+          doForAllLights(bridge, func(state *hue.State) {
+            state.Bri = 30
+            state.XY = hueOrangeColor
+          })
+          time.Sleep(60 * time.Second)
+          doForAllLights(bridge, func(state *hue.State) {
+            state.Bri = 1
+          })
+          time.Sleep(120 * time.Second)
+          doForAllLights(bridge, func(state *hue.State) {
+            state.On = false
+          })
+        }()
+      default:
+        return
+    }
   })
 
   // Loop !

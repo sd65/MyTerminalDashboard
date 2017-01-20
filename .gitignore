@@ -28,4 +28,5 @@ _testmain.go
 
 # External packages folder
 vendor/
+hueConfig.json
 MyTerminalDashboard
